@@ -1,9 +1,9 @@
 
 import java.awt.Color;
 import javax.swing.Icon;
-import javax.swing.ImageIcon;
 import javax.swing.JLabel;
 import javax.swing.JButton;
+import javax.swing.ImageIcon;
 import javax.swing.JOptionPane;
 
 public class Grid {
@@ -14,26 +14,20 @@ public class Grid {
     private final Color colorTeamX = Color.decode("#FF0000");
     private final Color colorTeamO = Color.decode("#0066FF");
 
-    private int counter;
-    private boolean vsIA;
     private boolean player;
     private boolean canPlay;
-    private boolean playing;
+    private boolean isPlaying;
 
     private JLabel info;
     private JLabel score;
-    private boolean[] xo;
     private JButton[] btns;
 
     public Grid() {
-        this.xo = null;
         this.btns = null;
         this.info = null;
-        this.counter = 0;
-        this.vsIA = false;
         this.player = true;
-        this.playing = false;
         this.canPlay = false;
+        this.isPlaying = false;
     }
 
     public Grid(JButton[] btns, JLabel info, JLabel score) {
@@ -42,14 +36,14 @@ public class Grid {
         this.score = score;
     }
 
+    public boolean getCanPlay() {
+        return canPlay;
+    }
+
     public boolean getPlaying() {
-        return playing;
+        return isPlaying;
     }
-
-    public void setVsIA() {
-        this.vsIA = !this.vsIA;
-    }
-
+    
     private void clearFields() {
         for (JButton btn : this.btns) {
             btn.setForeground(colorIdle);
@@ -57,35 +51,61 @@ public class Grid {
         }
     }
 
-    private void checkBoxes() {
-        int size = this.btns.length;
-        this.xo = new boolean[size];
-        String letter = getTeamLetter();
+    private boolean complete() {
+        boolean state = true;
+
+        for (int i = 0; i < btns.length; i++) {
+            if (btns[i].getText().equals(" ")) {
+                state = !state;
+                break;
+            }
+        }
+
+        return state;
+    }
+
+    private boolean[] determinePositions(JButton[] fields, String letter) {
+        int size = fields.length;
+        boolean[] array = new boolean[size];
 
         for (int i = 0; i < size; i++) {
-            xo[i] = btns[i].getText().equalsIgnoreCase(letter);
+            array[i] = fields[i].getText().equalsIgnoreCase(letter);
         }
 
-        boolean haveWin = (xo[4] && ((xo[0] && xo[8]) || (xo[2] && xo[6])))
-                || ((xo[0] && xo[1] && xo[2]) || (xo[3] && xo[4] && xo[5]) || (xo[6] && xo[7] && xo[8]))
-                || ((xo[0] && xo[3] && xo[6]) || (xo[1] && xo[4] && xo[7]) || (xo[2] && xo[5] && xo[8]));
+        return array;
+    }
 
-        if (haveWin) {
-            this.playing = this.canPlay = false;
+    private boolean playerWins(boolean[] array) {
+        boolean diagonally = array[4] && ((array[0] && array[8]) || (array[2] && array[6]));
+
+        boolean row = (array[0] && array[1] && array[2])
+                || (array[3] && array[4] && array[5])
+                || (array[6] && array[7] && array[8]);
+
+        boolean col = (array[0] && array[3] && array[6])
+                || (array[1] && array[4] && array[7])
+                || (array[2] && array[5] && array[8]);
+
+        return diagonally || row || col;
+    }
+
+    private void checkFields() {
+        String letter = getTeamLetter();
+        boolean[] array = determinePositions(this.btns, letter);
+
+        if (playerWins(array)) {
             updateScore(letter);
+            this.isPlaying = this.canPlay = false;
             announces("TEAM  " + letter + "  WINS!!", "img/win.png");
+        } else {
+            if (complete()) {
+                this.canPlay = this.isPlaying = false;
+                announces("EMPATE!!", "img/lose.png");
+            }
         }
-
-        if (counter == (size - 1) && !haveWin) {
-            this.canPlay = this.playing = false;
-            announces("EMPATE!!", "img/lose.png");
-        }
-
-        this.xo = null;
     }
 
     public void updateScore(String letter) {
-
         String[] phrase = score.getText().split("    ");
         String[] teamX = phrase[0].split(":");
         String[] teamO = phrase[1].split(":");
@@ -124,61 +144,62 @@ public class Grid {
     }
 
     private void nextTurn() {
-        this.counter++;
         this.player = !this.player;
         announces("player " + getTeamLetter() + "'s turn");
     }
 
-    public void setBtnTeam(JButton btn) {
-        
-        if (this.canPlay && btn.getText().equals(" ")) {
-            btn.setForeground(getTeamColor());
-            btn.setText(getTeamLetter());
-            checkBoxes();
-            nextTurn();
+    private int[] translateArrayIA(JButton[] fields) {
+
+        String team = "";
+        int size = fields.length;
+        int[] matriz = new int[size];
+
+        for (int i = 0; i < size; i++) {
+            team = fields[i].getText().toUpperCase();
+            if (team.equals(" ")) {
+                matriz[i] = 0;
+            }
+            if (team.equals("X")) {
+                matriz[i] = 1;
+            }
+            if (team.equals("O")) {
+                matriz[i] = 3;
+            }
         }
-        
-        if (vsIA && !this.canPlay && btn.getText().equals(" ")) {
-            btn.setForeground(getTeamColor());
-            btn.setText(getTeamLetter());
-            checkBoxes();
-            nextTurn();
-        }
+
+        return matriz;
     }
 
     public void ia() {
-        if (vsIA) {
+        this.canPlay = false;
+        IA intelligence = new IA();
+        int[] fields = translateArrayIA(this.btns);
+        int emptyBtn = intelligence.getMove(fields);
+        if (emptyBtn != -1) setBtnTeam(btns[emptyBtn]);
+        this.canPlay = true;
+    }
 
-            this.canPlay = false;
-            //Thread.sleep(2000);
-            String team = "";
-            int size = this.btns.length;
-            int[] matriz = new int[size];
-
-            for (int i = 0; i < size; i++) {
-                team = btns[i].getText().toUpperCase();
-                matriz[i] = team.equals("X") ? 1 : 0;
-                matriz[i] = team.equals("O") ? 2 : 0;
-            }
-
-            //int diagonalPrincipal = matriz[0] + matriz[1] + matriz[2];
-            for (int i = 0; i < size; i++) {
-                System.out.println(i + ": " + matriz[i]);
-            }
-
-            System.out.println("\n");
-            setBtnTeam(btns[4]);
-            this.canPlay = true;
+    public boolean setBtnTeam(JButton btn) {
+        
+        boolean state = false;
+        
+        if (this.isPlaying && btn.getText().equals(" ")) {
+            btn.setForeground(getTeamColor());
+            btn.setText(getTeamLetter());
+            checkFields();
+            state = true;
+            nextTurn();
         }
+        
+        return state;
     }
 
     public void start() {
         clearFields();
-        this.counter = 0;
         this.player = true;
         this.canPlay = true;
-        this.playing = true;
-        announces("player X's turn");
+        this.isPlaying = true;
+        announces("player " + getTeamLetter() + "'s turn");
     }
 
 }

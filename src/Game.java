@@ -2,32 +2,22 @@
 import java.awt.Image;
 import javax.swing.JButton;
 import javax.swing.ImageIcon;
+import javax.swing.JOptionPane;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import javax.swing.JOptionPane;
 
 public class Game extends javax.swing.JFrame {
 
     private Grid grid;
-    private boolean vsIA;
-    private JButton[] btns;
+    private boolean intelligence;
 
     /* Creates new form Game */
     public Game() {
-        this.vsIA = false;
-        initComponents();
-        settings();
-
-        btns = new JButton[]{
-            btn00, btn01, btn02,
-            btn10, btn11, btn12,
-            btn20, btn21, btn22
-        };
-
-        addListeners(btns);
-        grid = new Grid(btns, lbTurn, lbScore);
-        //singlePlayer();
-        grid.start();
+        initComponents(); settings();
+        grid = new Grid(getFields(), lbTurn, lbScore);
+        addListeners(getFields());
+        singlePlayer();
+        play();
     }
 
     /*
@@ -282,7 +272,7 @@ public class Game extends javax.swing.JFrame {
     }// </editor-fold>//GEN-END:initComponents
 
     private void btnIAMouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_btnIAMouseClicked
-        //iconIA();
+        iconIA();
     }//GEN-LAST:event_btnIAMouseClicked
 
     private void btnPlayMouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_btnPlayMouseClicked
@@ -347,35 +337,43 @@ public class Game extends javax.swing.JFrame {
     // End of variables declaration//GEN-END:variables
 
     private void settings() {
+        this.setTitle("Triki");
         String path = "/img/icon.png";
         this.setLocationRelativeTo(null);
-        this.setTitle("Triki");
         Image img = new ImageIcon(getClass().getResource(path)).getImage();
         setIconImage(img);
     }
-
-    private void iconIA() {
-        if (!grid.getPlaying()) {
-            grid.setVsIA();
-            this.vsIA = !this.vsIA;
-            btnIA.setEnabled(this.vsIA);
-        }
+    
+    private JButton[] getFields(){
+        return new JButton[]{
+            btn00, btn01, btn02,
+            btn10, btn11, btn12,
+            btn20, btn21, btn22
+        };
     }
 
-    private void addListeners(JButton[] btns) {
-        for (JButton btn : btns) {
-            btn.addActionListener(new ActionListener() {
+    private void addListeners(JButton[] fields) {
+        for (JButton field : fields) {
+            field.addActionListener(new ActionListener() {
                 public void actionPerformed(ActionEvent e) {
-                    grid.setBtnTeam((JButton) e.getSource());
-                    grid.ia();
+                    if (grid.getCanPlay()) {
+                        boolean ok = grid.setBtnTeam((JButton) e.getSource());
+                        if (intelligence && ok) grid.ia();
+                    }
                 }
             });
         }
     }
+    
+    private void iconIA() {
+        if (!grid.getPlaying()) {
+            this.intelligence = !this.intelligence;
+            btnIA.setEnabled(this.intelligence);
+        }
+    }
 
     private void singlePlayer() {
-        int single = JOptionPane.showConfirmDialog(rootPane, "Singler Player?");
-        if (single == 0) iconIA();
+        if (JOptionPane.showConfirmDialog(rootPane, "Singler Player?") == 0) iconIA();
     }
 
     private void exit() {
